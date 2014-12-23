@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+<link rel="stylesheet" href="css/bootstrap.min.css">
+<title>Sitegraph Visualization</title>
+
+<style>
+.canvas {
+  stroke-width:3px;
+  stroke: #000;
+  fill:none;
+}
+
+.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1px;
+}
+
+
+circle {
+  fill: #ccc;
+  stroke: #333;
+  stroke-width: 1px;
+}
+
+circle.target {
+  fill: #b0b;
+}
+
+text {
+  font: 10px sans-serif;
+  pointer-events: none;
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+}
+
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="col-lg-8 col-lg-offset-2">
+      <h1>D3 Site Graph - Buffalo.edu
+        <span><button type="button" class="btn btn-default pull-right" onclick="retick_graph()">100 More Ticks</button></span>
+      </h1>
+      <script src="http://d3js.org/d3.v3.min.js"></script>
+      <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+      <script src="d3-bootstrap/d3-bootstrap.min.js"></script>
+      <script>
+      var width = 1200,
+          height = 550;
+
+      var color = d3.scale.category20();
+
+      var force = d3.layout.force()
+          .charge(-50)
+          .linkDistance(10)
+          .size([width, height]);
+
+      var x = d3.scale.linear()
+          .domain([0, width])
+          .range([0, width]);
+
+      var y = d3.scale.linear()
+          .domain([0, height])
+          .range([height, 0]);
+
+      var svg = d3.select("body").append("svg")
+          .attr("width", width)
+          .attr("height", height)
+          .attr("class", "border")
+          .call(d3.behavior.zoom().scaleExtent([1, 8]).on("zoom", zoom))
+        .append("g");
+        
+      //border
+      d3.select("svg")
+        .append("rect")
+          .attr("x", 0)
+          .attr("y", 0)
+          .attr("height", height)
+          .attr("width", width)
+          .attr("class", "canvas");
+
+      // triangle marker for arrowtips
+      svg.append("marker")
+          .attr("id","triangle")
+          .attr("class","link")
+          .attr("viewBox", "0 0 10 10")
+          .attr("refX", 0)
+          .attr("refY", 5)
+          .attr("markerWidth", 6)
+          .attr("markerHeight", 6)
+          .attr("orient", "auto")
+        .append("path")
+          .attr("d", "M 0 0 L 10 5 L 0 10 z");
+
+      function zoom() {
+        svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+      }
+
+      function retick_graph() {
+          force.start();
+          for (var i = n * n; i > 0; --i) force.tick();
+          force.stop();
+      }
+
+      d3.json("../data/buffalo/graph.json", function(error, graph) { 
+        setTimeout( function() {
+          var n = graph.nodes.length;
+
+          force
+              .nodes(graph.nodes)
+              .links(graph.links)
+              .start();
+          for (var i = n * n; i > 0; --i) force.tick();
+          //force.stop();
+              
+
+          var link = svg.selectAll(".link")
+              .data(graph.links)
+            .enter().append("line")
+              .attr("class", "link")
+              .attr("marker-end","url(#triangle)");
+
+
+          var node = svg.selectAll(".node")
+              .data(graph.nodes)
+            .enter().append("circle")
+              .attr("class", "node")
+              .attr("r", 3)
+              .attr("transform", function(d) { return "translate(" + d + ")"; })
+              .call(force.drag);
+
+          node.append("title")
+              .text( function(d) { return d.url })
+              .attr("class","tt");
+
+                // URL tooltip
+          d3.selectAll("circle.tt")
+                .call(bootstrap.tooltip()
+                .placement("bottom"));
+       
+            link.attr("x1", function(d) { return d.source.x; })
+                .attr("y1", function(d) { return d.source.y; })
+                .attr("x2", function(d) { return d.target.x; })
+                .attr("y2", function(d) { return d.target.y; });
+
+            node.attr("cx", function(d) { return d.x; })
+                .attr("cy", function(d) { return d.y; });
+       
+
+
+        }, 10);
+
+      });
+      </script>
+

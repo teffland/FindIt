@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+<link rel="stylesheet" href="css/bootstrap.min.css">
+<title>Sitegraph Visualization</title>
+
+<style>
+.canvas {
+  stroke-width:3px;
+  stroke: #000;
+  fill:none;
+}
+
+.link {
+  fill: #666;
+  opacity: .8;
+  stroke: #666;
+  stroke-width: 1px;
+}
+
+
+circle {
+  fill: #ccc;
+  stroke: #333;
+  stroke-width: 1px;
+}
+
+circle.target {
+  fill: #b0b;
+}
+
+circle.selected {
+	fill: limegreen;
+}
+
+circle.parent {
+	fill: orange;
+}
+
+circle.child {
+	fill: steelblue;
+}
+
+div {
+    -webkit-transition: width 2s; /* For Safari 3.1 to 6.0 */
+    transition: width 2s;
+}
+
+text {
+  font: 10px sans-serif;
+  pointer-events: none;
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+}
+
+/* Tooltips */
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 2px;
+}
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: 0 0 0 0;
+  top: 100%;
+  left: 0;
+}
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 0.5;
+  color: rgba(0, 0, 0, 0.6);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="col-lg-8 col-lg-offset-1" id="canvas">
+      <h1>D3 Site Graph - Buffalo.edu
+        <span><button type="button" class="btn btn-default pull-right" onclick="retickGraph()">100 More Ticks</button></span>
+      </h1>
+    </div>
+    <div class="col-lg-3" id="legend">
+    	<h2>Legend</h2>
+    </div>
+  </div>
+  <!-- JAVASCRIPT -->
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+  <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+
+  <script>
+
+    // set up visualization dimensions
+    var margin = {top: 20, right: 50, bottom: 20, left: 50};
+  	var width = 940 - margin.left - margin.right,
+    		height = 500 - margin.top - margin.bottom,
+    		tbarh = 100;
+
+    // set up coordinate scales
+    var x = d3.scale.linear()
+    		.domain([0, width])
+    		.range([0, width]);
+
+    var y = d3.scale.linear()
+    		.domain([0, height])
+    		.range([height, 0]);
+
+    // set up svg base
+    var svg = d3.select("#canvas")
+    		.append("svg")
+    			.attr("width", width)
+    			.attr("height", height)
+    			.attr("x", margin.left)
+    			.attr("y", margin.top)
+					.call(d3.behavior.zoom().x(x).y(y).scaleExtent([-2,15]).on("zoom", zoom))
+    		.append("g");
+		
+    var force = d3.layout.force()
+    		.size([width, height])
+    		.charge(-30)
+    		.chargeDistance(200)
+    		.on("tick", tick);
+
+		// set up border
+		d3.select("svg")
+			.append("rect")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("height", height)
+        .attr("width", width)
+        .attr("class", "canvas"); 
+
+    // triangle marker for arrowtips
+    d3.select("svg").append("defs").append("marker")
+        .attr("id","triangle")
+        .attr("class","link")
+        .attr("viewBox", "0 -5 10 10")
+		    .attr("refX", 15)
+		    .attr("refY", 0)
+		    .attr("markerWidth", 8)
+		    .attr("markerHeight",8)
+		    .attr("orient", "auto")
+		  .append("path")
+		    .attr("d", "M0,-5L10,0L0,5");
+
+		// tooltips for nodes
+		// var tip = d3.tip()
+		//   .attr('class', 'd3-tip')
+		//   .offset([-10, 0])
+		//   .html(function(d) {
+		//     return "URL: " + d.url;
+		//   });
+		// svg.call(tip);
+
+    // "Simulating..." wait text
+    var loading = svg.append("text")
+    		.attr("x", width/2.)
+    		.attr("y", height/2.)
+    		.style("text-anchor", "middle")
+    		.text("Simulating graph, please wait...");
+
+		var link = svg.selectAll(".link"),
+		    linkedByIndex = {},
+		    node = svg.selectAll(".node");
+
+		var n, nText,
+				currentAlpha, alphaText; //used to keep track of how settled the graph is
+    // make the graph
+    function drawGraph(graph) {
+    	setTimeout( function() {
+	      // number of nodes in graph
+	      var n = graph.nodes.length;
+	      nText = d3.select("svg")
+	      	.append("text")
+	      		.attr("x", x(width*.89))
+	      		.attr("y", y(40))
+	      		.text("N = "+ n);
+
+	      force.nodes(graph.nodes)
+      		 .links(graph.links)
+      		 .start();
+
+	      // do the links first, so they're under the nodes
+	      link = link.data(graph.links)
+	      		.enter().append("line")
+	      			.attr("class", "link")
+	      			.attr("marker-end","url(#triangle)");
+
+	      node = node.data(graph.nodes)
+	      		.enter().append("circle")
+	      			.attr("class", "node")
+	      			.attr("r", 4);
+
+	      // add urls
+	      // node.append("title")
+	      // 		.text( function(d) { return d.url; });
+	      			// .call(force.drag);
+
+      	for( var i = n*n ; i > 0; --i) force.tick();
+      	currentAlpha = force.alpha();
+      	alphaText = d3.select("svg")
+	      	.append("text")
+	      		.attr("x", x(width*.89))
+	      		.attr("y", y(20));
+	      updateCurrentAlpha(currentAlpha);
+      	force.stop();
+
+      	// graph mouseover/mouseout transitions
+	      node.on('mouseover', function(d) {
+	      				// tip.show(d);
+				      	updateToolbar(d.url);
+				      	node.attr("class","node")
+	      				//change parent nodes
+	      				node.filter( function(o) {return d.parents.indexOf(o.index) > -1;})
+	      					.classed("parent", true)
+	      					.transition()
+	      					.duration(300)
+	      					.ease("quad")
+	      						.style("opacity",1)
+	      						.attr("r",6);
+	      				//change child nodes
+	      				node.filter( function(o) {return d.children.indexOf(o.index) > -1;})
+      						.classed("child", true)
+	      					.transition()
+	      					.duration(300)
+									.ease("quad")
+	      						.style("opacity",1)
+	      						.attr("r",6);
+	      				//change selected nodes
+	      				node.filter( function(o) {return d.index == o.index;})
+	      					.classed("selected", true)
+	      					.transition()
+	      					.duration(300)
+									.ease("quad")
+	      						.style("opacity",1)
+		      					.attr("r",10);
+		      			//fade out all the other nodes and links
+		      			node.filter( function(o) {return d.parents.indexOf(o.index) == -1 && d.children.indexOf(o.index) == -1 && d.index != o.index;})
+		      				.transition()
+		      				.duration(300)
+		      				.ease("quad")
+		      					.style("opacity",.3)
+		      					.attr("r",2);
+		      			link.filter( function(o) {return !(d.parents.indexOf(o.target.index) > -1) || !(d.children.indexOf(o.target.index) > -1) || d.index != o.target.index;})
+		      				.transition()
+		      				.duration(300)
+		      				.ease("quad")
+		      					.style("opacity",.3);
+		      			link.filter( function(o) {
+		      				return (d.parents.indexOf(o.source.index) > -1 && d === o.target) 
+		      				    || (d.children.indexOf(o.target.index) > -1 && d== o.source);
+		      				})
+		      				.transition()
+		      				.duration(300)
+		      				.ease("quad")
+		      					.style("opacity",1);
+	      			})
+				      .on('mouseout', function(d) {
+				      	// tip.hide(d);
+				      	updateToolbar(d.url);
+				      	node.attr("class","node")
+				      		.transition()
+	      					.duration(300)
+									.ease("quad")
+					      		.style("opacity", 1)
+		      					.attr("r",4);
+		      			link.transition()
+	      					.duration(300)
+									.ease("quad")
+					      		.style("opacity", 1);
+				      });
+
+
+	      loading.remove();
+      }, 10);
+    }
+
+    function tick() {
+    	node.attr("cx", function(d) { return x(d.x); })
+    			.attr("cy", function(d) { return y(d.y); });
+
+    	link.attr("x1", function(d) { return x(d.source.x); })
+    			.attr("y1", function(d) { return y(d.source.y); })
+    			.attr("x2", function(d) { return x(d.target.x); })
+    			.attr("y2", function(d) { return y(d.target.y); });
+		}
+
+		function retickGraph() {
+      force.resume(currentAlpha);
+      for (var i = 100; i > 0; --i) force.tick();
+      currentAlpha = force.alpha();
+    	updateCurrentAlpha(currentAlpha);
+      force.stop();
+  	}
+
+  	function updateCurrentAlpha(ca) {
+  		alphaText.text("alpha = "+ ca.toFixed(6));
+  	}
+    // event listener for zooming
+    function zoom() {
+    	node.attr("cx", function(d) { return x(d.x); })
+    			.attr("cy", function(d) { return y(d.y); });
+
+    	link.attr("x1", function(d) { return x(d.source.x); })
+    			.attr("y1", function(d) { return y(d.source.y); })
+    			.attr("x2", function(d) { return x(d.target.x); })
+    			.attr("y2", function(d) { return y(d.target.y); });
+		}
+
+		// get the data
+    d3.json("../data/buffalo/graph.json", function(error, graph) {
+    	drawGraph(graph);
+	  });
+
+    var toolbar = d3.select("#canvas")
+    								.append("svg")
+    									.attr("width", width)
+    									.attr("height", tbarh);
+
+    var urlSign = toolbar.append("text")
+	      		.attr("x", 20)
+	      		.attr("y", 20)
+	      		.text("URL:");
+
+	  function updateToolbar(url) {
+	  	urlSign.text("URL: " + url);
+	  }
+
+	  /***************************************************************
+	  * The Legend
+	  ***************************************************************/
+	  var legend = d3.select("#legend")
+	  							.append("svg")
+	  								.attr("width", 200)
+	  								.attr("height", height)
+	  							.append("g")
+	  								.attr("transform", "translate(" + margin.left + "," + 50 + ")");
+	  // parent node in legend
+	  legend.append("circle")
+	  				.attr("r", 7)
+	  				.classed("node parent", true)
+	  				.attr("cx", 0)
+	  				.attr("cy", 0);
+	 	legend.append("text")
+	 					.attr("x", 15)
+	 					.attr("y",5)
+	 					.style("text-anchor", "center")
+	 					.text("Parent Node");
+
+	 	// child node
+	  legend.append("circle")
+	  				.attr("r", 8)
+	  				.classed("node child", true)
+	  				.attr("cx", 0)
+	  				.attr("cy", 20);
+	 	legend.append("text")
+	 					.attr("x", 15)
+	 					.attr("y",25)
+	 					.style("text-anchor", "center")
+	 					.text("Child Node");
+  </script>
+</body>
