@@ -9,7 +9,7 @@ else:
     print "ERROR: Please specify the directory to work on"
     quit()
 
-files = os.listdir(data_dir)
+files = [ file for file in os.listdir(data_dir) if file[:-5] == "_meta" ]
 
 inlinks = {} #inlinks is essentially an inverted index of links
 # get entire inverted index
