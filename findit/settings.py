@@ -1,37 +1,13 @@
-###############################
-# -*- coding: utf-8 -*-
+"""
+* Findit settings for driver file
+"""
 
-# Scrapy settings for thesis project
-#
-# For simplicity, this file contains only the most important settings by
-# default. All the other settings are documented here:
-#
-#     http://doc.scrapy.org/en/latest/topics/settings.html
-#
-
-BOT_NAME = 'findit'
-
-SPIDER_MODULES = ['findit.spiders']
-NEWSPIDER_MODULE = 'findit.spiders'
-
-#CONCURRENT_REQUESTS = 1
-DEPTH_LIMIT = 8
-DEPTH_STATS_VERBOSE = True
-ROBOTSTXT_OBEY = True
-DOWNLOAD_DELAY = 2
-LOG = 'INFO'
-
-# Make it crawl BFS
-DEPTH_PRIORITY = 1
-SCHEDULER_DISK_QUEUE = 'scrapy.squeue.PickleFifoDiskQueue'
-SCHEDULER_MEMORY_QUEUE = 'scrapy.squeue.FifoMemoryQueue'
-
-# ITEM PIPELINES
-ITEM_PIPELINES = {
-    'findit.pipelines.DuplicatesPipeline': 100,
-    'findit.pipelines.JsonWriterPipeline': 1000,
-}
-
-
-# Crawl responsibly by identifying yourself (and your website) on the user-agent
-USER_AGENT = 'findit (+http://tomeffland.us)'
+KNOWN_PATHS_LOC = "../data/paths/agg_paths.json"
+CRAWL_DUPLICATES = False # check to see if we've crawled already or not 
+MAX_CRAWLS = 1000
+WAIT_LENGTH = .5# length in seconds to wait between requests, actual wait time varies from +-50% of this time
+ASK_BETWEEN_REQUESTS = False # set True to pause between each requests (for analyzing output)
+PIPELINES = [ 'JsonWriterPipeline'
+            ]
+DATA_DIRECTORY = "../data/all_big/" #leave the trailing "/"
+ALLOWED_DOMAINS = ["buffalo.edu", "washington.edu", "northwestern.edu"]

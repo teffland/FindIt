@@ -200,7 +200,7 @@ text {
 	      node = node.data(graph.nodes)
 	      		.enter().append("circle")
 	      			.attr("class", "node")
-	      			.attr("r", 4);
+	      			.attr("r", function(d) {return d.relevance*5.0; });
 
 	      // add urls
 	      // node.append("title")
@@ -217,69 +217,22 @@ text {
       	force.stop();
 
       	// graph mouseover/mouseout transitions
-	      node.on('mouseover', function(d) {
-	      				// tip.show(d);
-				      	updateToolbar(d.url);
-				      	node.attr("class","node")
-	      				//change parent nodes
-	      				node.filter( function(o) {return d.parents.indexOf(o.index) > -1;})
-	      					.classed("parent", true)
-	      					.transition()
-	      					.duration(300)
-	      					.ease("quad")
-	      						.style("opacity",1)
-	      						.attr("r",6);
-	      				//change child nodes
-	      				node.filter( function(o) {return d.children.indexOf(o.index) > -1;})
-      						.classed("child", true)
-	      					.transition()
-	      					.duration(300)
-									.ease("quad")
-	      						.style("opacity",1)
-	      						.attr("r",6);
-	      				//change selected nodes
-	      				node.filter( function(o) {return d.index == o.index;})
-	      					.classed("selected", true)
-	      					.transition()
-	      					.duration(300)
-									.ease("quad")
-	      						.style("opacity",1)
-		      					.attr("r",10);
-		      			//fade out all the other nodes and links
-		      			node.filter( function(o) {return d.parents.indexOf(o.index) == -1 && d.children.indexOf(o.index) == -1 && d.index != o.index;})
-		      				.transition()
-		      				.duration(300)
-		      				.ease("quad")
-		      					.style("opacity",.3)
-		      					.attr("r",2);
-		      			link.filter( function(o) {return !(d.parents.indexOf(o.target.index) > -1) || !(d.children.indexOf(o.target.index) > -1) || d.index != o.target.index;})
-		      				.transition()
-		      				.duration(300)
-		      				.ease("quad")
-		      					.style("opacity",.3);
-		      			link.filter( function(o) {
-		      				return (d.parents.indexOf(o.source.index) > -1 && d === o.target) 
-		      				    || (d.children.indexOf(o.target.index) > -1 && d== o.source);
-		      				})
-		      				.transition()
-		      				.duration(300)
-		      				.ease("quad")
-		      					.style("opacity",1);
-	      			})
-				      .on('mouseout', function(d) {
-				      	// tip.hide(d);
-				      	updateToolbar(d.url);
-				      	node.attr("class","node")
-				      		.transition()
-	      					.duration(300)
-									.ease("quad")
-					      		.style("opacity", 1)
-		      					.attr("r",4);
-		      			link.transition()
-	      					.duration(300)
-									.ease("quad")
-					      		.style("opacity", 1);
-				      });
+	      // node.on('mouseover', function(d) {
+	      // 				// tip.show(d);
+				   //    	updateToolbar(d);
+				   //    	focusNodes(d);
+	      // 				console.log(node);
+	      // 			})
+				   //    .on('mouseout', function(d) {
+				   //    	// tip.hide(d);
+	      // 				console.log(node);
+				   //    	updateToolbar(d);
+				   //    	unfocusNodes();
+				   //    })
+	      // 			.on('click', function(d) {
+	      // 				setFocus(d);
+	      // 				console.log(node);
+	      // 			});
 
 
 	      loading.remove();
@@ -318,6 +271,85 @@ text {
     			.attr("y2", function(d) { return y(d.target.y); });
 		}
 
+		function focusNodes(d) {
+	  	node.filter( function(o) {return !o.isFocused;})
+	  		.attr("class","node");
+			//change parent nodes
+			node.filter( function(o) {return d.parents.indexOf(o.index) > -1;})
+				.classed("parent", true)
+				.transition()
+				.duration(300)
+				.ease("quad")
+					.style("opacity",1)
+					.attr("r",6);
+			//change child nodes
+			node.filter( function(o) {return d.children.indexOf(o.index) > -1;})
+				.classed("child", true)
+				.transition()
+				.duration(300)
+				.ease("quad")
+					.style("opacity",1)
+					.attr("r",6);
+			//change selected nodes
+			node.filter( function(o) {return d.index == o.index;})
+				.classed("selected", true)
+				.transition()
+				.duration(300)
+				.ease("quad")
+					.style("opacity",1)
+					.attr("r",10);
+			//fade out all the other nodes and links
+			node.filter( function(o) {return d.parents.indexOf(o.index) == -1 && d.children.indexOf(o.index) == -1 && d.index != o.index && !o.isFocused;})
+				.transition()
+				.duration(300)
+				.ease("quad")
+					.style("opacity",.3)
+					.attr("r",2);
+			link.filter( function(o) {return !(d.parents.indexOf(o.target.index) > -1) || !(d.children.indexOf(o.target.index) > -1) || d.index != o.target.index;})
+				.transition()
+				.duration(300)
+				.ease("quad")
+					.style("opacity",.3);
+			link.filter( function(o) {
+				return (d.parents.indexOf(o.source.index) > -1 && d === o.target) 
+				    || (d.children.indexOf(o.target.index) > -1 && d== o.source);
+				})
+				.transition()
+				.duration(300)
+				.ease("quad")
+					.style("opacity",1);
+		}
+
+		function unfocusNodes(){
+    	node.filter( function(d) {return !d.isFocused;})
+    		.attr("class","node")
+    		.transition()
+				.duration(300)
+				.ease("quad")
+      		.style("opacity", 1)
+					.attr("r",4);
+			link.transition()
+				.duration(300)
+				.ease("quad")
+      		.style("opacity", 1);
+		}
+
+		function setFocus(d) {
+			/* TODO: Change behavior to:
+			 * Focus neighbor nodes if clicked node has neighbors which arent focused
+			 * Unfocus clicked and neighbor nodes iff all are focused
+			 */
+			// console.log(d.isFocused);
+			node.filter( function(o) {return d.parents.indexOf(o.index) > -1 || d.children.indexOf(o.index) > -1 || d.index == o.index;})
+				.datum( function(o) { 
+					if (!o.isFocused) o.isFocused = true;
+					else o.isFocused = false;
+					return o;
+					// console.log(o);
+				});
+			// console.log(d);
+		}
+
 		// get the data
     d3.json("../data/buffalo/graph.json", function(error, graph) {
     	drawGraph(graph);
@@ -333,8 +365,8 @@ text {
 	      		.attr("y", 20)
 	      		.text("URL:");
 
-	  function updateToolbar(url) {
-	  	urlSign.text("URL: " + url);
+	  function updateToolbar(d) {
+	  	urlSign.text("URL: " + d.url);
 	  }
 
 	  /***************************************************************
