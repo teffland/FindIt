@@ -1,0 +1,33 @@
+{
+  "manifest_version": 2,
+
+  "name": "MarkIt",
+  "description": "Record URL paths to generate training data paths for FindIt.",
+  "version": "0.1",
+
+  "background": {
+      "scripts": ["background.js", "jquery-1.11.2.min.js"],
+      "persistent": false
+    },
+
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+
+  "permissions": [
+    "tabs", 
+    "http://*/*", 
+    "https://*/*",
+    "storage"
+  ],
+
+  "browser_action": {
+    "default_icon": "icon.png",
+    "default_title": "Record URL Paths for FindIt!",
+    "default_popup": "ui.html"
+  }
+}
