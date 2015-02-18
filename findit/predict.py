@@ -3,6 +3,7 @@
 """
 #from features import featurize_html, featurize_tokens, DenseTransformer, UrlParser, TermCounter, NumberCounter, TermJoiner, UrlAnchorParser, TitleParser, AcronymCounter
 from features import *
+from settings import DATA_DIRECTORY
 import os
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
@@ -28,6 +29,30 @@ def get_data(data_dirs):
     urls = []
     Xs = []
     #data_files = shuffle(data_files)
+    # NEW DATA FORMAT
+    for f in data_files:
+        p = open(f+'_content', 'r')
+        data = json.load(p)
+        content = data['html']
+        title = data['title'] #['content']
+        p.close()
+        docs.append(content)
+        p = open(f+'_meta', 'r')
+        data = json.load(p)
+        relevance = data['relevance']
+        url = data['url']
+        p.close()
+        targets.append(relevance)
+        urls.append(url)
+        X = {'content':content,
+             'score':relevance,
+             'url':url,
+             'title':title}
+        Xs.append(X)    
+
+    return docs, targets, urls, Xs
+"""
+    # OLD DATA FORMAT
     for f in data_files:
         p = open(f+'_content', 'r')
         content = json.load(p)['body'] #['content']
@@ -46,14 +71,17 @@ def get_data(data_dirs):
         Xs.append(X)    
 
     return docs, targets, urls, Xs
+"""
+
 
 # load in the data from these folders
-data_dirs = ['../data/all/']
+data_dirs = [ DATA_DIRECTORY ]
 docs, targets, urls, Xs = get_data(data_dirs)
 
 
 
-# setup processing pipeline
+# OLD PIPE setup processing pipeline
+"""
 pipe = Pipeline([('term_counts', CountVectorizer(preprocessor=preprocess_blank, 
                                                  tokenizer=featurize_html, 
                                                  ngram_range=(1,3),
@@ -65,7 +93,7 @@ pipe = Pipeline([('term_counts', CountVectorizer(preprocessor=preprocess_blank,
 #                      ('reg', AdaBoostRegressor()),
 #                      ('reg', SVR( kernel='rbf')),
 ])
-
+"""
 # extended feature pipeline
 pipe2 = Pipeline([
     ('features', FeatureUnion([
@@ -96,17 +124,20 @@ pipe2 = Pipeline([
         #    ])),
         
         # extract title features
-        #('title_features', Pipeline([
-        #    ('title_parser', TitleParser()),
-        #    ('title_sub_features', FeatureUnion([
-        #        ('title_num_acronyms', AcronymCounter()), # counts number of acronyms in tokens
-        #        ('title_num_numbers', NumberCounter()),   # counts number of numbers in tokens
-        #        ('title_term_freqs', Pipeline([
-        #            ('title_term_vec', CountVectorizer()), # change these arguments, include bigrams, trigrams
-        #            ('title_term_tfidf', TfidfTransformer())#idf=False))
-        #            ])) 
-        #        ]))
-        #    ])),
+        ('title_features', Pipeline([
+           ('title_parser', TitleParser()),
+           ('title_sub_features', FeatureUnion([
+               ('title_num_acronyms', AcronymCounter()), # counts number of acronyms in tokens
+               ('title_num_numbers', NumberCounter()),   # counts number of numbers in tokens
+               ('title_term_freqs', Pipeline([
+                   ('title_term_vec', CountVectorizer(preprocessor=preprocess_blank, 
+                                                      tokenizer=featurize_tokens, 
+                                                      ngram_range=(1,3),
+                                                      max_df=.9)), # change these arguments, include bigrams, trigrams
+                   ('title_term_tfidf', TfidfTransformer(use_idf=True))
+                   ])) 
+               ]))
+           ])),
         # extract HTML features
         # TODO: Add known term list cross-referencing as second feature
         ('html_features', Pipeline([
@@ -122,27 +153,32 @@ pipe2 = Pipeline([
         ])),
     ('dense_features', DenseTransformer()),
     ('reg', RandomForestRegressor(n_estimators=50,
-                                  max_features='auto'
+                                  max_features='auto',
+                                  n_jobs=1
                                   ))
     ])
 
+# test out a pipe fixture
 """
 pipe_test = Pipeline([
-            ('title_parser', TitleParser()),
-            ('title_sub_features', FeatureUnion([
-                ('title_num_acronyms', AcronymCounter()), # counts number of acronyms in tokens
-                ('title_num_numbers', NumberCounter()),   # counts number of numbers in tokens
-                ('title_term_freqs', Pipeline([
-                    ('title_term_vec', CountVectorizer()), # change these arguments, include bigrams, trigrams
-                    ('title_term_tfidf', TfidfTransformer())#idf=False))
-                    ])) 
-                ]))
-            ])
+           ('title_parser', TitleParser()),
+           ('title_sub_features', FeatureUnion([
+               ('title_num_acronyms', AcronymCounter()), # counts number of acronyms in tokens
+               ('title_num_numbers', NumberCounter()),   # counts number of numbers in tokens
+               ('title_term_freqs', Pipeline([
+                   ('title_term_vec', CountVectorizer(preprocessor=preprocess_blank, 
+                                                      tokenizer=featurize_tokens, 
+                                                      ngram_range=(1,3),
+                                                      max_df=.9)), # change these arguments, include bigrams, trigrams
+                   ('title_term_tfidf', TfidfTransformer(use_idf=True))
+                   ])) 
+               ]))
+           ])
 
+trans = pipe_test.fit_transform(Xs, targets)
+for t in trans:
+   print t
 """
-#trans = pipe2.fit_transform(Xs, targets)
-#for t in trans:
-#    print t
 
 # Grid Search
 """
@@ -175,38 +211,39 @@ pipe_best = gs.best_estimator_
 """
 
 # cross validate
-"""
-print "Fitting and Scoring w/ Cross Validation Original pipe"
-scores = cv.cross_val_score(pipe, docs, targets, 
-                            cv=6, scoring='mean_absolute_error', 
-                            n_jobs=2)
-print "OG CV MSE scores: ", scores
-print "MSE: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2)
-"""
 
+Xs_train, Xs_test, tar_train, tar_test = cv.train_test_split(Xs, targets, test_size=0.5, random_state=0)
 print "Fitting and Scoring w/ Cross Validation new url added pipe"
 scores = cv.cross_val_score(pipe2, Xs, targets, 
-                            cv=6, scoring='mean_absolute_error', 
+                            cv=5, scoring='mean_absolute_error', 
                             n_jobs=-1)
 print "New CV MSE scores: ", scores
 print "MSE: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std())
 
 # look at the individual scores
 """
-for train_i, test_i in cv.KFold(n=len(docs), n_folds=10, shuffle=True):
-    #print "Train i, test i: ", train_i, test_i
-    doc_train, tar_train = docs[train_i[0]:train_i[-1]], targets[train_i[0]:train_i[-1]]
-    doc_test, tar_test = docs[test_i[0]:test_i[-1]], targets[test_i[0]:test_i[-1]]
-    pipe.fit(doc_train, tar_train)
-    predictions = pipe.predict(doc_test)
+i = 0
+print "Total Data size: %i" % len(Xs)
+for train_i, test_i in cv.KFold(n=len(Xs), n_folds=10, shuffle=True):
+    print "Fold #%i" % i
+    print "Train i, test i: ", train_i, test_i
+    Xs_train, tar_train = Xs[train_i[0]:train_i[-1]], targets[train_i[0]:train_i[-1]]
+    Xs_test, tar_test = Xs[test_i[0]:test_i[-1]], targets[test_i[0]:test_i[-1]]
+    print "Fitting %i training examples" % len(Xs_train)
+    pipe2.fit(Xs_train, tar_train)
+    print "Predicting %i test examples"  % len(Xs_test)
+    predictions = pipe2.predict(Xs_test)
     preds =  zip(predictions, tar_test)
     errors = [ ((p - t), t) for (p,t) in preds]
     for err in sorted(errors , key=lambda x:x[1]):
         print "%0.4f, %0.3f" % (err[0], err[1])
     print ""
+    i +=1
 """
-"""
+
+
 # weakly supervised classification of unknowns
+"""
 print "Weak Supervised:"
 X_train, tar_train, url_train = [], [], []
 X_test, tar_test, url_test = [], [], []
@@ -219,11 +256,13 @@ for x, target, url in zip(Xs, targets, urls):
         X_test.append(x)
         tar_test.append(target)
         url_test.append(url)
+print "Training Data"
+for d in sorted(zip(tar_train, url_train), key=lambda x:x[0]):
+    print d
 
-
-print "Fitting"
+print "Fitting %i labeled data items" % len(X_train)
 pipe2.fit(X_train, tar_train)
-print "Predicting"
+print "Predicting %i unlabeled data items" % len(X_test)
 pred = pipe2.predict(X_test)
 results = zip(pred, urls)
 for res in sorted(results, key=lambda x:x[0]):

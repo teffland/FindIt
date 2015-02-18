@@ -23,6 +23,7 @@ class train():
 
     def parse(self, response, level):
         #print response.__dict__.keys()
+        current_url=response.url
         extracted_links = [] # at the end of the parse, return all extracted links to add to the queue
         extracted_items = [] # at the end of the parse, return all extracted items to send down pipeline
         p = bs(response._content)
@@ -33,14 +34,17 @@ class train():
             # if link doesn't have an href skip it
             try: 
                 url = l['href']
+                #print "link href: %s" % url
             except KeyError:
+                #print "link with no href"
                 continue
             # filter unwanted url types. Details in util.py
-            url = util.make_canonical_url(url, current_url = response.url)
+            url = util.make_canonical_url(url, current_url = current_url)
             if util.is_good_url(url, allowed_domains=self.allowed_domains):
                 anchor_text = l.text # pull anchor text
                 # make link dict
                 link = {'url':url, 'text':l.text, 'level':level+1}
+                #print "Extracted url: %s" % url
                 extracted_links.append(link)
 
         # check if this was a designated target page 
@@ -53,7 +57,7 @@ class train():
                     'title':p.title.string,
                     'target':target,
                     'html':unicode(p.html),
-                    'relevance':.001,
+                    'relevance':0.001,
                     'distances':[],
                     'outLinks':extracted_links,
                     'inLinks':[],
@@ -64,4 +68,4 @@ class train():
         except:
             print "Page parsing error. returning an empty item to handle gracefully"
 
-        return extracted_links, extracted_items
+        return extracted_items

@@ -107,9 +107,9 @@ def calculate_relevance_scores():
     # for each target page, trace back the optimal path to the source
     for fname in targets:
         # label the target
-        print "On target file %s" % fname
         f = open(data_dir + fname, 'r+')
         data = json.load(f)
+        print "On target file %s" % data['url']
         data['relevance'] = 1.0
         f.seek(0)
         f.write(json.dumps(data, indent=4))
@@ -126,8 +126,8 @@ def calculate_relevance_scores():
         print "Building target-source path tree"
         while Q: # go until bfs queue is empty or we find the source node                print "Q: ", Q
             nodename, parent = Q.popleft() # get the next node and parent
-            print "Node: %s, parent: %s" % (nodename, parent)
-            print "Q size: %i, V size: %i" % (len(Q), len(V))
+            #print "Node: %s, parent: %s" % (nodename, parent)
+            #print "Q size: %i, V size: %i" % (len(Q), len(V))
             nodefile = open(data_dir + nodename+"_meta" , 'r')
             nodedata = json.load(nodefile) # was load(f) <- incorrect
             T.add_node(nodename, nodedata, parent=parent)
@@ -148,7 +148,7 @@ def calculate_relevance_scores():
             #raw_input("Continue?")
         # make sure we actually have a source node to aim for
         if not source: 
-            print "Source node never found. Without it the relevance metric is useless. Skipping..."
+            raw_input("Source node never found. Without it the relevance metric is useless. Skipping...")
             continue
             #quit()
         # we have populated the BFS tree with the path from source to target
@@ -163,14 +163,16 @@ def calculate_relevance_scores():
             nodedata = json.load(nodefile)
             nodedata['distances'].append(node.depth)
             nodedata['relevance'] = relevance(nodedata['distances'], source_dist)
+            print "Calculated Relevance: ", nodedata['relevance'], nodedata['url']
             nodefile.seek(0)
             nodefile.write(json.dumps(nodedata, indent=4))
             nodefile.truncate()
             nodefile.close()
             node = node.parent
             i += 1
-        raw_input("Relevance scores calculated for %s, Continue?" % fname)
+        raw_input("Relevance scores calculated for %s, Continue?" % data['url'])
     print "All Relevance Scores calculated"
+    print "Number of targets=%i, Number of sources=%i" %(len(targets), len(sources))
 
 
 
@@ -181,7 +183,7 @@ def relevance(distances, source_depth):
     try:
         dist_avg = sum(distances)/float(len(distances))
         rel = max(1 - dist_avg/source_depth, .1)
-        print "Calculated relevance: ", rel
+        #print "Calculated relevance: ", rel
         return rel
     except:
         print "ERROR: Unable to calculate relevance metric"

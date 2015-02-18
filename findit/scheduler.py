@@ -3,6 +3,7 @@
 """
 from collections import deque
 from random import shuffle
+from settings import MAX_CRAWLS
 
 class Scheduler():
     """ docstring for Scheduler"""
@@ -11,11 +12,20 @@ class Scheduler():
         self.queue = [ deque([]) for i in range(levels)] # queue is [ known paths, path siblings, path cousins]
         self.visited_urls = set()
         self.queue_set = set()
+        self.reached_max_crawls = False
         print "Scheduler Queue Initiated"
 
     # add a link to a subcontainer at the specified level
     def add_link(self, link, level, check_visited=True):
         self.update_queue_set()
+        # set no more crawls flag if we add up to max crawl size
+        # if (len(self.queue_set) + len(self.visited_urls)) >= MAX_CRAWLS: 
+        if self.queue_volume() >= MAX_CRAWLS: 
+            print "Max Queue size reached! No more crawling"
+            self.reached_max_crawls = True
+        if self.reached_max_crawls:
+            #print "No more adding to queue"
+            return
         if check_visited: 
             if link in self.visited_urls: 
                 #print "The url %s has already been visited" % link
@@ -67,7 +77,7 @@ class Scheduler():
     # get total number of elements in queue
     def queue_volume(self):
         v = sum([ len(subcontainer) for subcontainer in self.queue ])
-        print "Queue Volume: ", v
+        #print "Queue Volume: ", v
         return v
 
     def update_queue_set(self):

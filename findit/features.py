@@ -45,7 +45,10 @@ def preprocess_blank(data, all_lower=False):
 """
 def tokenize_body(page):
     body = page.find('body')
-    if not body: print page
+    if not body: 
+        #print page
+        #print "THIS PAGE HAS NO BODY"
+        return [ "THIS", "PAGE", "HAS", "NO" ,"BODY"]
     tokens = body.text.strip().split()
     return tokens
 
@@ -206,30 +209,36 @@ class UrlAnchorParser(TransformerMixin):
         return self 
 
 """
-*
+* Title Parser
+* take a title string and split on special chars and whitespace
 """
 class TitleParser(TransformerMixin):
     def get_params(self, deep=False):
         return {}
 
     def transform(self, X, **transform_params):
-        return X
+        titles = [ x['title'] for x in X ]
+        # print titles
+        return [ self.split_title(title) for title in titles ]
 
     def fit(self, X, y=None, **fit_params):
         return self 
 
-    def split_title(self, url, split_chars=special_chars):
+    def split_title(self, title, split_chars=special_chars):
+        if not title: return ["No", "title"]
         return [ token for token in 
-                re.split('/|_|-|\.|&|=|%|$|:|;|\'|,|\?', url) if token ]
+                 re.split('/|_|-|\.|&|=|%|$|:|;|\'|,|\?|\s+|\|', title) if token ]
 """
-*
+* AcronymCounter
+* Take a list of tokens and return the number of all-uppercase strings in the list 
 """
 class AcronymCounter(TransformerMixin):
     def get_params(self, deep=False):
         return {}
 
     def transform(self, X, **transform_params):
-        return X
+        max_acronym_len = 4
+        return np.atleast_2d([ len([token for token in tokens if token.isupper() and len(token) <= max_acronym_len]) for tokens in X ]).T
 
     def fit(self, X, y=None, **fit_params):
         return self

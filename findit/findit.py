@@ -55,13 +55,16 @@ def crawl_spider(spider):
     # add returned links to the queue
     # send returned items down the pipeline
     visits = 0
-    while not q.is_empty() and visits < settings.MAX_CRAWLS:
-        print "Visit #%i" % visits
+    while not q.is_empty():
         wait_between_requests() # wait a random small amount of time so we're less detectable
         url, level = q.get_next_link(what_level=True)
+        print "Visit #%i, Q level %i, Q volume %i" % (visits, level, q.queue_volume())
         response = get_request(url)
         if response: 
-            links , items = s.parse(response, level=level) # links and items are both links
+            items = s.parse(response, level=level) # links and items are both links
+            links = []
+            for item in items: 
+                links += item['outLinks']
             #print "exctracted links:", links
             add_to_queue(q, links) # manage the returned links
             send_down_pipeline(pipeline, items, s) # manage the returned items
@@ -69,7 +72,7 @@ def crawl_spider(spider):
             visits += 1 
 
     if q.is_empty(): print "CRAWL IS FINISHED: Queue is empty"
-    if visits >= settings.MAX_CRAWLS: print "CRAWL IS FINISHED: Crawled max number of urls (%i total)" % visits
+    #if visits >= settings.MAX_CRAWLS: print "CRAWL IS FINISHED: Crawled max number of urls (%i total)" % visits
 
 
 
@@ -159,8 +162,8 @@ elif len(sys.argv) in [2,3,4]:  # <command>
     elif command == "score":
         backlinks.calculate_relevance_scores()
     # featurize all of the pages, creating all the training data
-    elif command == "featurize":
-        features.featurize_all()
+    #elif command == "featurize":
+    #    features.featurize_all()
 
     # no correct command used
     else:

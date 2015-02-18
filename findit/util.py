@@ -2,7 +2,7 @@
 * Findit utility functions
 * This includes feature extractors
 """
-
+from urlparse import urljoin # significantly more robust than combining links with urls myself
 
 """
 * Master function that tests if as url meets the requirements
@@ -14,7 +14,7 @@ def is_good_url(url, allowed_domains=None):
             return False
     if is_cyclic_url(url): return False # check if the url is cyclic (to avoid infitite redirect loops)
     if is_mailto(url): return False     # check if the url is an email address
-    if has_no_extension(url): return False # check for a file extension. If there isn't one this probably isn't a page
+    #if has_no_extension(url): return False # check for a file extension. If there isn't one this probably isn't a page
     if is_image(url): return False      # check for image extension
 
     # passed all of the tests, so return that it's good
@@ -37,23 +37,25 @@ def is_offsite(allowed_domains, url):
 * Used to take a url as a string and make into canonical form for crawling
 """
 def make_canonical_url(url, current_url=None):
+    # should be able to do this much more robustly with the urlparse library
     # change local url to global
     # check for if the url is local or is global
-    if "http://" == url[:7] or "https://" == url[:8]: # global url path, so it should be fine
-        #print "Global url referred: %s" % url
-        return url
-    else: # a local url path
-        # check for ..'s as these signify how many directories to go back
-        urlsplit = url.split('/')
-        if urlsplit[0] == '': urlsplit = urlsplit[1:] # if the local started with a / drop it
-        #print urlsplit
-        backcount = 1 # start with one because we'll always remove the current page
-        for s in urlsplit:
-            if s == "..": backcount += 1
-            else: break
-        canon = '/'.join(current_url.split('/')[:-backcount] + urlsplit[backcount-1:]) # now concat the root and the local url with /'s
-        #print "Made canonical url %s from %s and %s" % (canon, current_url, url)
-    return canon
+    # if "http://" == url[:7] or "https://" == url[:8]: # global url path, so it should be fine
+    #     #print "Global url referred: %s" % url
+    #     return url
+    # else: # a local url path
+    #     # check for ..'s as these signify how many directories to go back
+    #     urlsplit = url.split('/')
+    #     if urlsplit[0] == '': urlsplit = urlsplit[1:] # if the local started with a / drop it
+    #     #print urlsplit
+    #     backcount = 1 # start with one because we'll always remove the current page
+    #     for s in urlsplit:
+    #         if s == "..": backcount += 1
+    #         else: break
+    #     canon = '/'.join(current_url.split('/')[:-backcount] + urlsplit[backcount-1:]) # now concat the root and the local url with /'s
+    #     #print "Made canonical url %s from %s and %s" % (canon, current_url, url)
+    # return canon
+    return urljoin(current_url, url)
 
 """
 * Detect cyclic url pattern
