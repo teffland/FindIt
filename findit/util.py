@@ -3,7 +3,8 @@
 * This includes feature extractors
 """
 from urlparse import urljoin # significantly more robust than combining links with urls myself
-
+import hashlib
+from settings import DATA_DIRECTORY
 """
 * Master function that tests if as url meets the requirements
 """
@@ -15,7 +16,7 @@ def is_good_url(url, allowed_domains=None):
     if is_cyclic_url(url): return False # check if the url is cyclic (to avoid infitite redirect loops)
     if is_mailto(url): return False     # check if the url is an email address
     #if has_no_extension(url): return False # check for a file extension. If there isn't one this probably isn't a page
-    if is_image(url): return False      # check for image extension
+    if is_bad_filetype(url): return False      # check for image extension
 
     # passed all of the tests, so return that it's good
     return True
@@ -55,7 +56,10 @@ def make_canonical_url(url, current_url=None):
     #     canon = '/'.join(current_url.split('/')[:-backcount] + urlsplit[backcount-1:]) # now concat the root and the local url with /'s
     #     #print "Made canonical url %s from %s and %s" % (canon, current_url, url)
     # return canon
-    return urljoin(current_url, url)
+    canon_url = urljoin(current_url, url)
+    if '#' in canon_url:
+        canon_url = ''.join(canon_url.split('#')[:-1])
+    return canon_url
 
 """
 * Detect cyclic url pattern
@@ -102,8 +106,8 @@ def has_no_extension(url):
 """
 * Test to see if the is an image extension in the url
 """
-def is_image(url):
-    for ext in ['png', 'jpg', 'jpeg', 'gif', 'bmp']:
+def is_bad_filetype(url):
+    for ext in ['pdf', 'wma', 'mp3', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'bmp']:
         if ext in url.split('.'): return True
     return False
 
@@ -114,3 +118,14 @@ def remove_scripts_and_style(p):
     for s in p.find_all(['script', 'style']):
         s.decompose()
     return p
+
+"""
+* Take a url and get the hashed filename
+"""
+def make_url_filename(url, prefix='', suffix=''):
+    # use md5 hash hexdigest for filenames since some are too long
+    url = hashlib.md5(url).hexdigest()
+    url = prefix+url+suffix   
+    return DATA_DIRECTORY + url
+
+

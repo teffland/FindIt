@@ -148,7 +148,7 @@ def calculate_relevance_scores():
             #raw_input("Continue?")
         # make sure we actually have a source node to aim for
         if not source: 
-            raw_input("Source node never found. Without it the relevance metric is useless. Skipping...")
+            #raw_input("Source node never found. Without it the relevance metric is useless. Skipping...")
             continue
             #quit()
         # we have populated the BFS tree with the path from source to target
@@ -170,7 +170,7 @@ def calculate_relevance_scores():
             nodefile.close()
             node = node.parent
             i += 1
-        raw_input("Relevance scores calculated for %s, Continue?" % data['url'])
+        #raw_input("Relevance scores calculated for %s, Continue?" % data['url'])
     print "All Relevance Scores calculated"
     print "Number of targets=%i, Number of sources=%i" %(len(targets), len(sources))
 

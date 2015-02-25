@@ -4,7 +4,7 @@
 import settings
 import json
 import os
-import hashlib
+from util import make_url_filename
 
 class JsonWriterPipeline():
     """docstring for JsonWriterPipeline"""
@@ -25,7 +25,7 @@ class JsonWriterPipeline():
         if content['target']: prefix = 'T_'
         if content['url'] in spider.start_urls: prefix = 'S_'
         
-        fname = self.make_url_filename(content['url'], prefix=prefix, suffix=suffix)
+        fname = make_url_filename(content['url'], prefix=prefix, suffix=suffix)
         file = open(fname, 'w')
         print 'Writing file: %s' % fname
         file.write(data)
@@ -39,7 +39,7 @@ class JsonWriterPipeline():
             elif link['url'] in spider.start_urls: prefix = "S_"
             else: prefix = ''
             try:
-                meta['outFiles'].append(self.make_url_filename(link['url'], prefix=prefix))
+                meta['outFiles'].append(make_url_filename(link['url'], prefix=prefix))
             except UnicodeEncodeError:
                 print "Non-ascii found in meta outlink... skipping the link"
         #meta['outFiles'] = [ self.make_url_filename(link['url']) for link in meta['outLinks'] ] # get the filename for each out link
@@ -54,7 +54,7 @@ class JsonWriterPipeline():
             print "Found root url %s " % meta['url']
             #raw_input('Found starting url')
        
-        fname = self.make_url_filename(meta['url'], prefix=prefix, suffix=suffix)
+        fname = make_url_filename(meta['url'], prefix=prefix, suffix=suffix)
         file = open(fname, 'w')
         print 'Writing file: %s' % fname
         file.write(data)
@@ -62,12 +62,6 @@ class JsonWriterPipeline():
         
         return item
     
-    # change url from example.edu/stuff to example.edu_stuff for a filename
-    def make_url_filename(self, url, prefix='', suffix=''):
-        # use md5 hash hexdigest for filenames since some are too long
-        url = hashlib.md5(url).hexdigest()
-        url = prefix+url+suffix   
-        return self.data_dir + url
 
 
 class DuplicatePipeline():

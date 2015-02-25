@@ -202,11 +202,17 @@ class UrlAnchorParser(TransformerMixin):
     def get_params(self, deep=False):
         return {}
 
-    def transform(self, X, **transform_params):
-        return X
+    def transform(self, X, **transform_params) :
+        return [ self.split_anchor(' '.join(x['text']).strip()) for x in X ]
 
     def fit(self, X, y=None, **fit_params):
         return self 
+
+    def split_anchor(self, anchor, split_chars=special_chars):
+        #print anchor
+        if not anchor: return ["No", "anchor"]
+        return [ token for token in 
+                 re.split('/|_|-|\.|&|=|%|$|:|;|\'|,|\?|\s+|\|', anchor) if token ]
 
 """
 * Title Parser
@@ -256,110 +262,3 @@ class HtmlParser(TransformerMixin):
 
     def fit(self, X, y=None, **fit_params):
         return self
-
-"""
-* Used to featurize all of the collected data
-* DEPRECATED
-* TODO: Make featurize over all data folders
-"""
-def featurize_all():
-    # load up the feature index data structure
-    index_f = open('../data/feature_index.json', 'r')
-    index = json.load(index_f)
-    index_f.close()
-
-    # now loop over each content page and featurize it
-    # in the first pass we 
-    # (1) featurize the document
-    # (2) write out the feature vector data as a vocab and TF to the '_data' file 
-    # (3) fill in the index as we go to get IDF later
-    # in the second pass we use the index to get IDF and multiply by TF to get vector component scores
-    data_dir = settings.DATA_DIRECTORY
-    files = [ file for file in os.listdir(data_dir) if file[-8:] == "_content" ]
-    badset = set()
-    #print files
-    for counter, fname in enumerate(files):
-        f = open(data_dir + fname, 'r') # load the data
-        content = json.load(f)
-        f.close()
-        fshort = fname[:-8] # strip '_content' from name
-        try:
-            assert 'body' in content['body'] 
-            bs = BeautifulSoup(content['body']) # parse it
-        except (AssertionError, KeyError):
-            print "No body found in content:"
-            print content
-            print "Skipping this file"
-            badset.add(fname) # don't try to read this file later
-            continue
-        print "\rFeaturizing Page #%i" % counter
-        features = featurize(bs) # featurize the parsed html tree
-        try:
-            assert len(features) > 0
-        except AssertionError:
-            print "No features collected from %s, body=%s" % (fname, bs)
-            print "Skipping this file"
-            badset.add(fname) # don't try to read this file later
-            continue
-        tf = tfs(features)       # calculate term frequency for each feature
-        data =  {f[0]:{'tf':f[1], 'idf':None, 'tfidf':None} for f in tf }
-
-        # write out the data we just calculated
-        #print "Writing data file %s_data" % fshort
-        d = open(data_dir + fshort + '_data', 'w')
-        d.write(json.dumps(dict(data), indent=4) + "\n")
-        d.close()
-        # fill in the index with the features we haven't encountered yet
-        for feature in features:
-            try:
-                if fshort not in set(index[feature]): 
-                    index[feature].append(fshort) # index 
-            except KeyError:
-                index[feature] = [fshort]
-
-    # write back out the completed index
-    index_f = open('../data/feature_index.json', 'w')
-    index_f.write(json.dumps(dict(index), indent=4) + "\n")
-    index_f.close()
-
-    # now the index is complete, so get the IDFs and fill in the TF x IDF score in the data files
-    files = [ f for f in files if f not in badset] # remove the ones we never made data files for
-    idf = idfs(index)
-    for counter, fname in enumerate(files):
-        fshort = fname[:-8]
-        print "\rWriting TFIDF back for page #%i" % counter
-        d = open(data_dir + fshort + '_data', 'r+')
-        data = json.load(d)
-        for feature, val in idf:
-            try:
-                tfidf = data[feature]['tf']*val
-                data[feature]['idf'] = val
-                data[feature]['tfidf'] = tfidf
-                #print "Feature %s tfidf: %4f" % (feature, tfidf)
-            except KeyError:
-                #print 'Feature %s not found in %s' % (feature, fshort)
-                continue
-
-        d.seek(0)
-        d.write(json.dumps(dict(data), indent=4) + "\n")
-        d.truncate()
-        d.close()
-
-    # now the data files are populated with the features
-    # just read in the relevance score and write out to the data as the label 
-    for counter, fname in enumerate(files):
-        fshort = fname[:-8]
-        d = open(data_dir + fshort + '_meta', 'r')
-        meta = json.load(d)
-        relevance = meta['relevance']
-        print "File %s #%i, relevance = %3f" % (fshort, counter, relevance)
-        d.close()
-        d = open(data_dir + fshort + '_data', 'r+')
-        data = json.load(d)
-        data['__relevance__'] = relevance
-        d.seek(0)
-        d.write(json.dumps(dict(data), indent=4) + "\n")
-        d.close()
-
-    print "All data items in %s featurized", data_dir
-
