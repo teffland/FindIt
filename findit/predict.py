@@ -6,6 +6,7 @@ from features import *
 from settings import DATA_DIRECTORY
 from util import make_url_filename
 import os
+
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.decomposition import TruncatedSVD
@@ -15,6 +16,8 @@ from sklearn.svm import SVR
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn import cross_validation as cv
 from sklearn.grid_search import GridSearchCV
+from sklearn.metrics import mean_absolute_error
+
 import json
 import numpy as np
 from random import shuffle
@@ -448,7 +451,53 @@ Z_targets = [ datum[1] for datum in url_data]
 print "We have %i labeled data" % len(Xs)
 # only take the "Labeled data"
 """
+* Test test error by domain type 
+* FOR THE POSTER
+"""
+domains = ["buffalo.edu",
+           "washington.edu",
+           "northwestern.edu", 
+           # "rochester.edu",
+           "bu.edu",
+           "unc.edu",
+           "illinois.edu",
+          ]
+
+for domain in domains:
+  # split up the domains
+  test_domain = domain
+  train_domains = domains[:]
+  train_domains.remove(test_domain)
+  # get the train domains data
+  x_t_train = [ (x,t) for (x,t) in zip(Xs, targets) for d in train_domains if d in x['url'] ]
+  X_train = [ x for x,t in x_t_train ]
+  X_tar_train = [ t for x,t in x_t_train ]
+  z_t_train = [ (z,t) for (z,t) in zip(Zs, Z_targets) for d in train_domains if d in z['url'] ]
+  Z_train = [ z for (z,t) in z_t_train ]
+  Z_tar_train = [ t for (z,t) in z_t_train ]
+  # get the test domain data
+  x_t_test = [ (x, t) for x, t in zip(Xs, targets) if test_domain in x['url'] ]
+  X_test = [ x for x,t in x_t_test ]
+  X_tar_test = [ t for x,t in x_t_test ]
+  z_t_test = [ (z, t) for z, t in zip(Zs, Z_targets) if test_domain in z['url'] ]
+  Z_test = [ z for z,t in z_t_test ]
+  Z_tar_test = [ t for z,t in z_t_test]
+  # fit to the train domains
+  print "[%s] %i, %i X, Z train examples, %i, %i X, Z test examples" % (test_domain, len(X_train), len(Z_train), len(X_test), len(Z_test))
+  page_pipe.fit(X_train, X_tar_train)
+  url_pipe.fit(Z_train, Z_tar_train)
+  # test them out on the other domain
+  page_pred = page_pipe.predict(X_test)
+  page_err = mean_absolute_error(X_tar_test, page_pred) 
+  url_pred = url_pipe.predict(Z_test)
+  url_err = mean_absolute_error(Z_tar_test, url_pred) 
+  print "[%s] average page error: %.03f, average url error: %0.3f" % (test_domain, page_err, url_err)
+
+
+
+"""
 * Cross Validation of labeled data
+"""
 """
 print "Page Labeled CV"
 page_scores = cv.cross_val_score(page_pipe, Xs, targets, 
@@ -466,11 +515,11 @@ print "MSE: %0.3f (+/- %0.3f)" % (page_scores.mean(), page_scores.std())
 
 print "URL CV MSE scores: ", url_scores
 print "MSE: %0.3f (+/- %0.3f)" % (url_scores.mean(), url_scores.std())
-
+"""
 
 
 # now fit
-# """
+"""
 print "Fitting deployment Regressors on %i labeled page examples and %i labeled url examples" % (len(Xs), len(Zs))
 page_pipe.fit(Xs, targets)
 url_pipe.fit(Zs, Z_targets)
@@ -479,4 +528,4 @@ with open(DATA_DIRECTORY+'../clf/page_pipe.pkl','wb') as f:
   pickle.dump(page_pipe, f)
 with open(DATA_DIRECTORY+'../clf/url_pipe.pkl','wb') as f:
   pickle.dump(url_pipe, f)
-# """
+"""

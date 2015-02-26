@@ -9,7 +9,7 @@ WAIT_LENGTH = .5# length in seconds to wait between requests, actual wait time v
 ASK_BETWEEN_REQUESTS = False #True # set True to pause between each requests (for analyzing output)
 PIPELINES = [ 'JsonWriterPipeline'
             ]
-DATA_DIRECTORY = "../data/all2/" #leave the trailing "/"
+DATA_DIRECTORY = "../data/poster/" #leave the trailing "/"
 ALLOWED_DOMAINS = ["buffalo.edu",
                    "washington.edu",
                    "northwestern.edu", 
